@@ -4,6 +4,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import {
   AgentRunRepository,
   BriefRepository,
+  DeliveryRepository,
+  FeedbackRepository,
+  LibraryRepository,
   SubscriptionRepository,
   UserRepository,
   type NewsDatabase,
@@ -11,10 +14,14 @@ import {
 
 import { registerUserRoutes } from "./routes/users.js";
 import { registerBriefRoutes } from "./routes/briefs.js";
+import { registerFeedbackRoutes } from "./routes/feedback.js";
+import { registerDeliveryRoutes } from "./routes/deliveries.js";
 import { registerRunRoutes } from "./routes/runs.js";
 import { InMemoryRunEventStore } from "./run-event-store.js";
 import { NewsScheduler } from "./scheduler.js";
 import type { AgentRunController } from "./types.js";
+import { DeliveryWorker, type DeliveryService } from "./delivery.js";
+import type { FeedbackActionSigner } from "./signed-actions.js";
 
 export interface CreateAppOptions {
   db: NewsDatabase;
@@ -24,6 +31,10 @@ export interface CreateAppOptions {
   agentController?: AgentRunController;
   enableScheduler?: boolean;
   schedulerIntervalMs?: number;
+  deliveryService?: DeliveryService;
+  feedbackActionSigner?: FeedbackActionSigner;
+  enableDeliveryWorker?: boolean;
+  deliveryWorkerIntervalMs?: number;
 }
 
 export async function createApp(options: CreateAppOptions): Promise<FastifyInstance> {
@@ -40,17 +51,32 @@ export async function createApp(options: CreateAppOptions): Promise<FastifyInsta
     subscriptions: new SubscriptionRepository(options.db),
     runs: new AgentRunRepository(options.db),
     briefs: new BriefRepository(options.db),
+    feedback: new FeedbackRepository(options.db),
+    library: new LibraryRepository(options.db),
+    deliveries: new DeliveryRepository(options.db),
   };
   const events = new InMemoryRunEventStore();
 
   await registerUserRoutes(app, repositories);
   await registerRunRoutes(app, { repositories, events, ...(options.agentController ? { controller: options.agentController } : {}) });
   await registerBriefRoutes(app, { repositories, dataRoot: options.dataRoot ?? "data" });
+  await registerFeedbackRoutes(app, repositories);
+  await registerDeliveryRoutes(app, {
+    repositories,
+    ...(options.deliveryService ? { delivery: options.deliveryService } : {}),
+    ...(options.feedbackActionSigner ? { signer: options.feedbackActionSigner } : {}),
+  });
 
   if (options.agentController && options.enableScheduler) {
     const scheduler = new NewsScheduler(repositories, options.agentController, events);
     scheduler.start(options.schedulerIntervalMs);
     app.addHook("onClose", async () => scheduler.stop());
+  }
+
+  if (options.deliveryService && options.enableDeliveryWorker) {
+    const worker = new DeliveryWorker(options.deliveryService);
+    worker.start(options.deliveryWorkerIntervalMs);
+    app.addHook("onClose", async () => worker.stop());
   }
 
   return app;

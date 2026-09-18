@@ -2,16 +2,39 @@ import type { Subscription } from "@news-agent/shared";
 
 import type { AppRepositories, AgentRunController, RunEventStore } from "./types.js";
 
-function localParts(date: Date, timezone: string): { date: string; hour: number; minute: number } {
+function localParts(date: Date, timezone: string): { date: string; hour: number; minute: number; weekday: number } {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes): string => parts.find((part) => part.type === type)?.value ?? "";
-  return { date: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")), minute: Number(get("minute")) };
+  const localDate = `${get("year")}-${get("month")}-${get("day")}`;
+  return {
+    date: localDate,
+    hour: Number(get("hour")),
+    minute: Number(get("minute")),
+    weekday: new Date(`${localDate}T12:00:00.000Z`).getUTCDay(),
+  };
 }
 
-export function isSubscriptionDue(subscription: Subscription, now: Date): { due: boolean; localDate: string } {
-  const [minute, hour, ...rest] = subscription.scheduleCron.trim().split(/\s+/);
+function dayMatches(expression: string, weekday: number): boolean {
+  if (expression === "*") return true;
+  if (expression === "1-5") return weekday >= 1 && weekday <= 5;
+  return expression.split(",").some((value) => Number(value) === weekday);
+}
+
+export function isSubscriptionDue(subscription: Subscription, now: Date, compensationMinutes = 240): { due: boolean; localDate: string } {
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = subscription.scheduleCron.trim().split(/\s+/);
   const local = localParts(now, subscription.timezone);
-  return { due: rest.join(" ") === "* * *" && Number(minute) === local.minute && Number(hour) === local.hour, localDate: local.date };
+  if (
+    dayOfMonth !== "*" ||
+    month !== "*" ||
+    !dayOfWeek ||
+    !dayMatches(dayOfWeek, local.weekday) ||
+    subscription.skipDates.includes(local.date) ||
+    (subscription.pausedUntil !== null && subscription.pausedUntil >= local.date)
+  ) return { due: false, localDate: local.date };
+  const scheduledMinute = Number(hour) * 60 + Number(minute);
+  const currentMinute = local.hour * 60 + local.minute;
+  const delay = currentMinute - scheduledMinute;
+  return { due: delay >= 0 && delay <= compensationMinutes, localDate: local.date };
 }
 
 export class NewsScheduler {

@@ -1,10 +1,20 @@
 import type {
   AgentRunRecord,
   BriefDetail,
+  BriefFeedback,
+  BriefFeedbackSummary,
+  BriefItemFeedback,
+  BriefItemFeedbackType,
   CreateUserInput,
+  DeliveryJob,
+  DeliveryJobDetail,
   SavedBrief,
+  SavedItem,
   Subscription,
   UpsertSubscriptionInput,
+  UpsertBriefFeedbackInput,
+  TrackedTopic,
+  TrackedTopicStatus,
   User,
 } from "@news-agent/shared";
 
@@ -80,6 +90,95 @@ export const api = {
 
   getBrief(briefId: string): Promise<BriefDetail> {
     return request(`/api/briefs/${briefId}`);
+  },
+
+  skipToday(userId: string): Promise<Subscription> {
+    return request(`/api/users/${userId}/subscription/skip-today`, { method: "POST", body: "{}" });
+  },
+
+  listDeliveries(briefId: string): Promise<DeliveryJobDetail[]> {
+    return request(`/api/briefs/${briefId}/deliveries`);
+  },
+
+  deliverBrief(briefId: string, userId: string): Promise<DeliveryJob> {
+    return request(`/api/briefs/${briefId}/deliver`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  retryDelivery(deliveryId: string, userId: string): Promise<DeliveryJob> {
+    return request(`/api/deliveries/${deliveryId}/retry`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  getBriefFeedback(briefId: string, userId: string): Promise<BriefFeedbackSummary> {
+    return request(`/api/briefs/${briefId}/feedback?userId=${encodeURIComponent(userId)}`);
+  },
+
+  saveBriefFeedback(
+    briefId: string,
+    userId: string,
+    input: UpsertBriefFeedbackInput,
+  ): Promise<BriefFeedback> {
+    return request(`/api/briefs/${briefId}/feedback`, {
+      method: "PUT",
+      body: JSON.stringify({ userId, ...input }),
+    });
+  },
+
+  setItemFeedback(
+    itemId: string,
+    userId: string,
+    type: BriefItemFeedbackType,
+    active: boolean,
+  ): Promise<BriefItemFeedback> {
+    return request(`/api/brief-items/${itemId}/feedback/${type}`, {
+      method: active ? "PUT" : "DELETE",
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  saveItem(itemId: string, userId: string): Promise<SavedItem> {
+    return request(`/api/brief-items/${itemId}/saved`, {
+      method: "PUT",
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  removeSavedItem(itemId: string, userId: string): Promise<{ removed: boolean }> {
+    return request(`/api/brief-items/${itemId}/saved`, {
+      method: "DELETE",
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  listSavedItems(userId: string): Promise<SavedItem[]> {
+    return request(`/api/users/${userId}/saved-items`);
+  },
+
+  trackItem(itemId: string, userId: string): Promise<TrackedTopic> {
+    return request(`/api/brief-items/${itemId}/tracking`, {
+      method: "POST",
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  listTrackedTopics(userId: string): Promise<TrackedTopic[]> {
+    return request(`/api/users/${userId}/tracked-topics`);
+  },
+
+  updateTrackedTopic(
+    trackingId: string,
+    userId: string,
+    input: { label?: string; status?: TrackedTopicStatus },
+  ): Promise<TrackedTopic> {
+    return request(`/api/tracked-topics/${trackingId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ userId, ...input }),
+    });
   },
 
   watchRun(runId: string, onEvent: (event: RunEvent) => void, onError: () => void): () => void {

@@ -4,12 +4,12 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { AgentRunRepository, BriefRepository, createDatabase, DeliveryRepository, migrateDatabase, SubscriptionRepository, UserRepository, type DatabaseContext } from "@news-agent/db";
+import { AgentRunRepository, ArticleRepository, BriefRepository, createDatabase, DeliveryRepository, FeedbackRepository, LibraryRepository, migrateDatabase, SubscriptionRepository, UserRepository, type DatabaseContext } from "@news-agent/db";
 import type { BriefDetail, SavedBrief, User } from "@news-agent/shared";
 
 import { createApp } from "./app.js";
 import { createDemoAgentController } from "./demo-runtime.js";
-import { WebhookDeliveryService } from "./delivery.js";
+import { DeliveryService, WebhookDeliveryAdapter } from "./delivery.js";
 import { InMemoryRunEventStore } from "./run-event-store.js";
 import { isSubscriptionDue, NewsScheduler } from "./scheduler.js";
 import type { AgentRunController, AppRepositories } from "./types.js";
@@ -90,7 +90,15 @@ describe("Phase 5 end-to-end experience", () => {
       },
       cancel: async () => false,
     };
-    const repositories: AppRepositories = { users, subscriptions, runs, briefs: new BriefRepository(database.db) };
+    const repositories: AppRepositories = {
+      users,
+      subscriptions,
+      runs,
+      briefs: new BriefRepository(database.db),
+      feedback: new FeedbackRepository(database.db),
+      library: new LibraryRepository(database.db),
+      deliveries: new DeliveryRepository(database.db),
+    };
     const scheduler = new NewsScheduler(repositories, controller, new InMemoryRunEventStore());
     await scheduler.tick(now);
     await scheduler.tick(now);
@@ -99,18 +107,35 @@ describe("Phase 5 end-to-end experience", () => {
 
   it("retries webhook delivery and does not deliver the same run twice", async () => {
     const user = new UserRepository(database.db).create({ displayName: "Delivery User" });
+    new SubscriptionRepository(database.db).upsert(user.id, {
+      topics: ["AI"], keywords: [], excludedKeywords: [], languages: ["en"], sourceIds: [],
+      maxItems: 3, scheduleCron: "0 8 * * *", timezone: "UTC", deliveryChannel: "webhook", enabled: true,
+    });
     const runs = new AgentRunRepository(database.db);
     const runId = runs.create(user.id);
     runs.finish(runId, "succeeded", 1);
+    const articleId = "delivery-article";
+    new ArticleRepository(database.db).upsertMany([{
+      articleId, provider: "mock", sourceId: "mock", sourceName: "Mock", title: "Delivery",
+      canonicalUrl: "https://example.com/delivery", publishedAt: new Date().toISOString(),
+      retrievedAt: new Date().toISOString(), language: "en",
+    }]);
+    const brief = new BriefRepository(database.db).save({
+      userId: user.id, runId, title: "Delivery Brief", overview: "Overview",
+      items: [{ headline: "Delivery", summary: "Summary", whyItMatters: "Why", topic: "AI", sourceArticleIds: [articleId] }],
+    }, { localDate: "2026-09-18", markdownPath: "briefs/delivery.md" });
     let calls = 0;
-    const delivery = new WebhookDeliveryService(database.db, "https://hooks.example/news", async () => {
+    let now = new Date("2026-09-18T08:00:00.000Z");
+    const adapter = new WebhookDeliveryAdapter("https://hooks.example/news", async () => {
       calls += 1;
       return new Response(null, { status: calls === 1 ? 503 : 204 });
     });
-    const result = { runId, status: "succeeded" as const, briefId: "brief-1", finalText: "", toolCallCount: 1, turnCount: 1 };
-    await delivery.deliver(result);
-    await delivery.deliver(result);
+    const delivery = new DeliveryService(database.db, [adapter], "http://localhost:5173", undefined, () => now);
+    await delivery.enqueueBrief(brief.id);
+    now = new Date("2026-09-18T08:01:01.000Z");
+    await delivery.processDue(now);
+    await delivery.enqueueBrief(brief.id);
     expect(calls).toBe(2);
-    expect(new DeliveryRepository(database.db).find(runId, "webhook")).toMatchObject({ status: "delivered", attempts: 2 });
+    expect(new DeliveryRepository(database.db).findByRunAndChannel(runId, "webhook")).toMatchObject({ status: "succeeded", attemptCount: 2 });
   });
 });

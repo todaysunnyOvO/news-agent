@@ -24,6 +24,8 @@ export const subscriptions = sqliteTable(
     timezone: text("timezone").notNull(),
     deliveryChannel: text("delivery_channel").notNull(),
     enabled: integer("enabled", { mode: "boolean" }).notNull(),
+    pausedUntil: text("paused_until"),
+    skipDatesJson: text("skip_dates_json").notNull().default("[]"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -71,20 +73,6 @@ export const agentRuns = sqliteTable("agent_runs", {
   idempotencyKey: text("idempotency_key"),
 }, (table) => [uniqueIndex("agent_runs_idempotency_key_unique").on(table.idempotencyKey)]);
 
-export const deliveryAttempts = sqliteTable(
-  "delivery_attempts",
-  {
-    id: text("id").primaryKey(),
-    runId: text("run_id").notNull().references(() => agentRuns.id, { onDelete: "cascade" }),
-    channel: text("channel").notNull(),
-    status: text("status").notNull(),
-    attempts: integer("attempts").notNull().default(0),
-    lastError: text("last_error"),
-    deliveredAt: text("delivered_at"),
-  },
-  (table) => [uniqueIndex("delivery_attempts_run_channel_unique").on(table.runId, table.channel)],
-);
-
 export const briefs = sqliteTable(
   "briefs",
   {
@@ -127,4 +115,123 @@ export const briefItemSources = sqliteTable(
       .references(() => articles.id, { onDelete: "cascade" }),
   },
   (table) => [primaryKey({ columns: [table.briefItemId, table.articleId] })],
+);
+
+export const deliveryJobs = sqliteTable(
+  "delivery_jobs",
+  {
+    id: text("id").primaryKey(),
+    briefId: text("brief_id").notNull().references(() => briefs.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull().references(() => agentRuns.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(),
+    destinationHash: text("destination_hash").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    status: text("status").notNull(),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    nextAttemptAt: text("next_attempt_at"),
+    lastError: text("last_error"),
+    deliveredAt: text("delivered_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("delivery_jobs_idempotency_key_unique").on(table.idempotencyKey),
+    uniqueIndex("delivery_jobs_run_channel_unique").on(table.runId, table.channel),
+  ],
+);
+
+export const deliveryAttempts = sqliteTable("delivery_attempts", {
+  id: text("id").primaryKey(),
+  deliveryJobId: text("delivery_job_id").notNull().references(() => deliveryJobs.id, { onDelete: "cascade" }),
+  attemptNumber: integer("attempt_number").notNull(),
+  status: text("status").notNull(),
+  providerMessageId: text("provider_message_id"),
+  errorCode: text("error_code"),
+  durationMs: integer("duration_ms").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [
+  uniqueIndex("delivery_attempts_job_number_unique").on(table.deliveryJobId, table.attemptNumber),
+]);
+
+export const briefFeedback = sqliteTable(
+  "brief_feedback",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    briefId: text("brief_id")
+      .notNull()
+      .references(() => briefs.id, { onDelete: "cascade" }),
+    usefulness: text("usefulness"),
+    lengthRating: text("length_rating"),
+    missedImportantNews: integer("missed_important_news", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    comment: text("comment"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("brief_feedback_user_brief_unique").on(table.userId, table.briefId)],
+);
+
+export const briefItemFeedback = sqliteTable(
+  "brief_item_feedback",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    briefItemId: text("brief_item_id")
+      .notNull()
+      .references(() => briefItems.id, { onDelete: "cascade" }),
+    feedbackType: text("feedback_type").notNull(),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("brief_item_feedback_user_item_type_unique").on(
+      table.userId,
+      table.briefItemId,
+      table.feedbackType,
+    ),
+  ],
+);
+
+export const savedItems = sqliteTable(
+  "saved_items",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    briefItemId: text("brief_item_id")
+      .notNull()
+      .references(() => briefItems.id, { onDelete: "cascade" }),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("saved_items_user_item_unique").on(table.userId, table.briefItemId)],
+);
+
+export const trackedTopics = sqliteTable(
+  "tracked_topics",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    queryJson: text("query_json").notNull(),
+    status: text("status").notNull(),
+    sourceBriefItemId: text("source_brief_item_id").references(() => briefItems.id, {
+      onDelete: "set null",
+    }),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("tracked_topics_user_source_unique").on(table.userId, table.sourceBriefItemId),
+  ],
 );

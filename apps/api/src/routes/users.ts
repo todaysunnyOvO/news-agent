@@ -39,6 +39,8 @@ const subscriptionBodySchema = {
     timezone: { type: "string", minLength: 1, maxLength: 100 },
     deliveryChannel: { type: "string", enum: ["web", "email", "webhook"] },
     enabled: { type: "boolean" },
+    pausedUntil: { anyOf: [{ type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, { type: "null" }] },
+    skipDates: { type: "array", items: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, maxItems: 60 },
   },
 } as const;
 
@@ -125,5 +127,28 @@ export async function registerUserRoutes(
       return reply.code(200).send(subscription);
     },
   );
-}
 
+  app.post<{ Params: { userId: string } }>(
+    "/api/users/:userId/subscription/skip-today",
+    { schema: { params: idParamsSchema } },
+    async (request, reply) => {
+      const subscription = repositories.subscriptions.findByUserId(request.params.userId);
+      if (!subscription) {
+        return reply.code(404).send({ error: "SUBSCRIPTION_NOT_FOUND", message: "Subscription not found", statusCode: 404 });
+      }
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: subscription.timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      const parts = formatter.formatToParts(new Date());
+      const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+      const localDate = `${value("year")}-${value("month")}-${value("day")}`;
+      return repositories.subscriptions.upsert(subscription.userId, {
+        ...subscription,
+        skipDates: [...new Set([...subscription.skipDates, localDate])].slice(-60),
+      });
+    },
+  );
+}

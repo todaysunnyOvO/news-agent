@@ -1,4 +1,4 @@
-import type { AgentRunRepository, BriefRepository, SubscriptionRepository, UserRepository } from "@news-agent/db";
+import type { AgentRunRepository, BriefRepository, DeliveryRepository, FeedbackRepository, LibraryRepository, SubscriptionRepository, UserRepository } from "@news-agent/db";
 import type { NewsAgentEvent, RunNewsAgentInput, RunNewsAgentResult, StartedNewsAgentRun } from "@news-agent/agent";
 
 export interface AppRepositories {
@@ -6,6 +6,9 @@ export interface AppRepositories {
   subscriptions: SubscriptionRepository;
   runs: AgentRunRepository;
   briefs: BriefRepository;
+  feedback: FeedbackRepository;
+  library: LibraryRepository;
+  deliveries: DeliveryRepository;
 }
 
 export interface AgentRunController {

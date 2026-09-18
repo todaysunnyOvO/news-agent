@@ -32,6 +32,8 @@ function toSubscription(row: SubscriptionRow): Subscription {
     timezone: row.timezone,
     deliveryChannel: row.deliveryChannel as DeliveryChannel,
     enabled: row.enabled,
+    pausedUntil: row.pausedUntil,
+    skipDates: parseStringArray(row.skipDatesJson),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -79,6 +81,8 @@ export class SubscriptionRepository {
       timezone: input.timezone,
       deliveryChannel: input.deliveryChannel,
       enabled: input.enabled,
+      pausedUntil: input.pausedUntil ?? null,
+      skipDatesJson: JSON.stringify(input.skipDates ?? []),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -99,6 +103,8 @@ export class SubscriptionRepository {
           timezone: values.timezone,
           deliveryChannel: values.deliveryChannel,
           enabled: values.enabled,
+          pausedUntil: values.pausedUntil,
+          skipDatesJson: values.skipDatesJson,
           updatedAt: values.updatedAt,
         },
       })
