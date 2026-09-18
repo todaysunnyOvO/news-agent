@@ -39,6 +39,7 @@ const subscriptionBodySchema = {
     timezone: { type: "string", minLength: 1, maxLength: 100 },
     deliveryChannel: { type: "string", enum: ["web", "email", "webhook"] },
     enabled: { type: "boolean" },
+    personalizationEnabled: { type: "boolean" },
     pausedUntil: { anyOf: [{ type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, { type: "null" }] },
     skipDates: { type: "array", items: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, maxItems: 60 },
   },

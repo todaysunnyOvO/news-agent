@@ -2,6 +2,7 @@ import { Type } from "typebox";
 
 import type { ArticleRepository } from "@news-agent/db";
 import type { NewsService } from "@news-agent/news";
+import type { PersonalizationService } from "@news-agent/personalization";
 import type { NewsSearchRequest } from "@news-agent/shared";
 
 import { executeWithAudit, type ToolAuditLogger, type ToolDefinition } from "../types.js";
@@ -9,6 +10,8 @@ import { executeWithAudit, type ToolAuditLogger, type ToolDefinition } from "../
 export function createSearchNewsTool(
   service: NewsService,
   articles: ArticleRepository,
+  currentUserId: string,
+  personalization: PersonalizationService,
   logger: ToolAuditLogger,
 ): ToolDefinition<NewsSearchRequest, { count: number }> {
   return {
@@ -28,11 +31,19 @@ export function createSearchNewsTool(
     ),
     execute: async (toolCallId, params, signal) =>
       executeWithAudit(logger, "search_news", toolCallId, async () => {
-        const results = await service.search(params, signal);
+        const requestedLimit = params.limit ?? 10;
+        const results = await service.search({ ...params, limit: Math.min(20, requestedLimit * 2) }, signal);
         articles.upsertMany(results);
+        const ranked = personalization.rank(currentUserId, results).slice(0, requestedLimit);
+        const response = ranked.map(({ article, score, reasons, majorNewsGuard }) => ({
+          ...article,
+          personalizationScore: score,
+          recommendationReasons: reasons,
+          majorNewsGuard,
+        }));
         return {
-          content: [{ type: "text", text: JSON.stringify(results) }],
-          details: { count: results.length },
+          content: [{ type: "text", text: JSON.stringify(response) }],
+          details: { count: response.length },
         };
       }),
   };

@@ -16,6 +16,7 @@
     "@news-agent/agent": "0.1.0",
     "@news-agent/db": "0.1.0",
     "@news-agent/news": "0.1.0",
+    "@news-agent/personalization": "0.1.0",
     "@news-agent/shared": "0.1.0",
     "fastify": "5.12.5"
   },

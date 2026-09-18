@@ -8,6 +8,9 @@ import type {
   CreateUserInput,
   DeliveryJob,
   DeliveryJobDetail,
+  InferredPreference,
+  InferredPreferenceStatus,
+  PersonalizationProfile,
   SavedBrief,
   SavedItem,
   Subscription,
@@ -69,6 +72,35 @@ export const api = {
     return request<Subscription>(`/api/users/${userId}/subscription`, {
       method: "PUT",
       body: JSON.stringify(input),
+    });
+  },
+
+  getPreferenceProfile(userId: string): Promise<PersonalizationProfile> {
+    return request(`/api/users/${userId}/preference-profile`);
+  },
+
+  setPersonalizationEnabled(userId: string, enabled: boolean): Promise<Subscription> {
+    return request(`/api/users/${userId}/personalization`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    });
+  },
+
+  updateInferredPreference(
+    preferenceId: string,
+    userId: string,
+    input: { status?: InferredPreferenceStatus; weight?: number },
+  ): Promise<InferredPreference> {
+    return request(`/api/inferred-preferences/${preferenceId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ userId, ...input }),
+    });
+  },
+
+  deleteInferredPreference(preferenceId: string, userId: string): Promise<{ removed: boolean }> {
+    return request(`/api/inferred-preferences/${preferenceId}`, {
+      method: "DELETE",
+      body: JSON.stringify({ userId }),
     });
   },
 

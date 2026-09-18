@@ -99,9 +99,11 @@ describe("news domain tools", () => {
       "preferences",
       { userId: user.id },
     );
-    expect((JSON.parse(preferences.content[0]?.text ?? "{}") as Subscription).topics).toEqual([
+    const parsedPreferences = JSON.parse(preferences.content[0]?.text ?? "{}") as Subscription & { personalizationProfile: { enabled: boolean } };
+    expect(parsedPreferences.topics).toEqual([
       "AI Agent",
     ]);
+    expect(parsedPreferences.personalizationProfile.enabled).toBe(true);
 
     const search = await getTool<{ query: string; limit: number }>(tools, "search_news").execute(
       "search",
@@ -109,6 +111,7 @@ describe("news domain tools", () => {
     );
     const results = JSON.parse(search.content[0]?.text ?? "[]") as NewsArticle[];
     expect(results).toHaveLength(2);
+    expect(results[0]).toHaveProperty("recommendationReasons");
 
     const first = results[0];
     if (!first) throw new Error("Expected a search result");

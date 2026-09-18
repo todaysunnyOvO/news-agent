@@ -77,6 +77,15 @@ button:disabled { cursor: wait; opacity: 0.55; }
 .delivery-row button { margin: 0; }
 .delivery-row div { display: grid; gap: 4px; }
 .delivery-row small { color: #747d77; }
+.profile-section { margin-top: 28px; }
+.profile-section h3 { margin-bottom: 12px; }
+.preference-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid #e3e7e1; }
+.preference-row > div:first-child { display: grid; gap: 5px; }
+.preference-row span { color: #747d77; font-size: 12px; }
+.preference-row .item-actions { margin: 0; }
+.preference-row .text-button { padding: 8px 4px; }
+.preference-weight { display: flex; align-items: center; gap: 8px; }
+.preference-weight button { margin: 0; padding: 6px 10px; }
 
 @media (max-width: 680px) {
   .shell { padding-top: 36px; }
@@ -88,4 +97,5 @@ button:disabled { cursor: wait; opacity: 0.55; }
   .library-layout, .feedback-grid { grid-template-columns: 1fr; }
   .event { grid-template-columns: 70px 1fr; }
   .event span { grid-column: 1 / -1; }
+  .preference-row { grid-template-columns: 1fr; }
 }

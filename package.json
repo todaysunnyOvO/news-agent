@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build:packages && npm run build -w @news-agent/api && npm run build -w @news-agent/web",
-    "build:packages": "npm run build -w @news-agent/shared && npm run build -w @news-agent/news && npm run build -w @news-agent/db && npm run build -w @news-agent/tools && npm run build -w @news-agent/agent",
+    "build:packages": "npm run build -w @news-agent/shared && npm run build -w @news-agent/news && npm run build -w @news-agent/db && npm run build -w @news-agent/personalization && npm run build -w @news-agent/tools && npm run build -w @news-agent/agent",
     "check": "npm run lint && npm run typecheck && npm run test",
     "dev:api": "npm run build -w @news-agent/shared && npm run build -w @news-agent/db && npm run dev -w @news-agent/api",
     "dev:web": "npm run dev -w @news-agent/web",

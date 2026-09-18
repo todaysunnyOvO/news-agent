@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { AgentRunRepository, ArticleRepository, BriefRepository, createDatabase, DeliveryRepository, FeedbackRepository, LibraryRepository, migrateDatabase, SubscriptionRepository, UserRepository, type DatabaseContext } from "@news-agent/db";
+import { AgentRunRepository, ArticleRepository, BriefRepository, createDatabase, DeliveryRepository, FeedbackRepository, InferredPreferenceRepository, LibraryRepository, migrateDatabase, SubscriptionRepository, UserRepository, type DatabaseContext } from "@news-agent/db";
 import type { BriefDetail, SavedBrief, User } from "@news-agent/shared";
 
 import { createApp } from "./app.js";
@@ -96,6 +96,7 @@ describe("Phase 5 end-to-end experience", () => {
       runs,
       briefs: new BriefRepository(database.db),
       feedback: new FeedbackRepository(database.db),
+      inferredPreferences: new InferredPreferenceRepository(database.db),
       library: new LibraryRepository(database.db),
       deliveries: new DeliveryRepository(database.db),
     };

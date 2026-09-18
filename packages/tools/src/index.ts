@@ -6,6 +6,7 @@ import {
   type NewsDatabase,
 } from "@news-agent/db";
 import type { NewsService } from "@news-agent/news";
+import { PersonalizationService } from "@news-agent/personalization";
 import { createListDirTool } from "./filesystem/list-dir.js";
 import { createReadFileTool } from "./filesystem/read-file.js";
 import { createSearchContentTool } from "./filesystem/search-content.js";
@@ -58,13 +59,15 @@ export interface CreateNewsToolsetOptions {
 export function createNewsToolset(options: CreateNewsToolsetOptions): ToolDefinition<unknown, unknown>[] {
   const logger = options.logger ?? noopToolAuditLogger;
   const articles = new ArticleRepository(options.db);
+  const personalization = new PersonalizationService(options.db);
   const tools = [
     createGetUserPreferencesTool(
       options.userId,
       new SubscriptionRepository(options.db),
+      personalization,
       logger,
     ),
-    createSearchNewsTool(options.newsService, articles, logger),
+    createSearchNewsTool(options.newsService, articles, options.userId, personalization, logger),
     createFetchArticleTool(options.newsService, articles, logger),
     createFindRelatedArticlesTool(options.newsService, articles, logger),
     createSaveBriefTool(

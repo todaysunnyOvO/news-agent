@@ -12,11 +12,22 @@ import type {
 
 import type { NewsDatabase } from "../database.js";
 import {
+  articles,
   briefFeedback,
   briefItemFeedback,
+  briefItemSources,
   briefItems,
   briefs,
 } from "../schema.js";
+
+export interface FeedbackContextSignal {
+  id: string;
+  feedbackType: BriefItemFeedbackType;
+  topic: string;
+  headline: string;
+  sourceNames: string[];
+  occurredAt: string;
+}
 
 export class FeedbackRepository {
   public constructor(private readonly db: NewsDatabase) {}
@@ -143,6 +154,33 @@ export class FeedbackRepository {
         .where(eq(briefItemFeedback.id, values.id))
         .get()!,
     );
+  }
+
+  public listActiveSignals(userId: string): FeedbackContextSignal[] {
+    const rows = this.db
+      .select({ feedback: briefItemFeedback, item: briefItems })
+      .from(briefItemFeedback)
+      .innerJoin(briefItems, eq(briefItemFeedback.briefItemId, briefItems.id))
+      .innerJoin(briefs, eq(briefItems.briefId, briefs.id))
+      .where(and(eq(briefItemFeedback.userId, userId), eq(briefItemFeedback.active, true), eq(briefs.userId, userId)))
+      .all();
+    return rows.map(({ feedback, item }) => {
+      const sourceNames = this.db
+        .select({ sourceName: articles.sourceName })
+        .from(briefItemSources)
+        .innerJoin(articles, eq(briefItemSources.articleId, articles.id))
+        .where(eq(briefItemSources.briefItemId, item.id))
+        .all()
+        .map(({ sourceName }) => sourceName);
+      return {
+        id: feedback.id,
+        feedbackType: feedback.feedbackType as BriefItemFeedbackType,
+        topic: item.topic,
+        headline: item.headline,
+        sourceNames,
+        occurredAt: feedback.updatedAt,
+      };
+    });
   }
 
   private userOwnsBrief(userId: string, briefId: string): boolean {

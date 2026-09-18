@@ -26,6 +26,7 @@ export const subscriptions = sqliteTable(
     enabled: integer("enabled", { mode: "boolean" }).notNull(),
     pausedUntil: text("paused_until"),
     skipDatesJson: text("skip_dates_json").notNull().default("[]"),
+    personalizationEnabled: integer("personalization_enabled", { mode: "boolean" }).notNull().default(true),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -234,4 +235,24 @@ export const trackedTopics = sqliteTable(
   (table) => [
     uniqueIndex("tracked_topics_user_source_unique").on(table.userId, table.sourceBriefItemId),
   ],
+);
+
+export const inferredPreferences = sqliteTable(
+  "inferred_preferences",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    value: text("value").notNull(),
+    weight: integer("weight").notNull(),
+    confidence: integer("confidence").notNull(),
+    status: text("status").notNull(),
+    evidenceCount: integer("evidence_count").notNull(),
+    evidenceJson: text("evidence_json").notNull(),
+    lastReinforcedAt: text("last_reinforced_at").notNull(),
+    expiresAt: text("expires_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [uniqueIndex("inferred_preferences_user_kind_value_unique").on(table.userId, table.kind, table.value)],
 );

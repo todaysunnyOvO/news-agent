@@ -9,6 +9,8 @@ import type {
   BriefUsefulness,
   DeliveryJob,
   DeliveryJobDetail,
+  InferredPreference,
+  PersonalizationProfile,
   SavedBrief,
   SavedItem,
   TrackedTopic,
@@ -24,6 +26,7 @@ const defaultSubscription: UpsertSubscriptionInput = {
   languages: ["zh-CN", "en"], sourceIds: [], maxItems: 5, scheduleCron: "0 8 * * *",
   timezone: "Asia/Shanghai", deliveryChannel: "web", enabled: true,
   pausedUntil: null, skipDates: [],
+  personalizationEnabled: true,
 };
 
 const emptyBriefFeedback: UpsertBriefFeedbackInput = {
@@ -47,7 +50,7 @@ export function App() {
   const [form, setForm] = useState<UpsertSubscriptionInput>(defaultSubscription);
   const [status, setStatus] = useState("请先创建一个本地演示身份。");
   const [busy, setBusy] = useState(false);
-  const [view, setView] = useState<"settings" | "run" | "history" | "library">("settings");
+  const [view, setView] = useState<"settings" | "personalization" | "run" | "history" | "library">("settings");
   const [run, setRun] = useState<AgentRunRecord>();
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [briefs, setBriefs] = useState<SavedBrief[]>([]);
@@ -57,6 +60,7 @@ export function App() {
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [trackedTopics, setTrackedTopics] = useState<TrackedTopic[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryJobDetail[]>([]);
+  const [profile, setProfile] = useState<PersonalizationProfile>();
   const closeEvents = useRef<() => void>(() => undefined);
 
   async function loadHistory(userId: string): Promise<void> {
@@ -67,6 +71,10 @@ export function App() {
     const [saved, tracked] = await Promise.all([api.listSavedItems(userId), api.listTrackedTopics(userId)]);
     setSavedItems(saved);
     setTrackedTopics(tracked);
+  }
+
+  async function loadProfile(userId: string): Promise<void> {
+    setProfile(await api.getPreferenceProfile(userId));
   }
 
   useEffect(() => {
@@ -81,6 +89,7 @@ export function App() {
           api.getSubscription(savedUserId).then(setForm).catch(() => setStatus("身份已恢复，请保存订阅偏好。")),
           loadHistory(savedUserId),
           loadLibrary(savedUserId),
+          loadProfile(savedUserId).catch(() => undefined),
         ]);
         const linkedBrief = new URLSearchParams(window.location.search).get("brief");
         if (linkedBrief) await openBrief(linkedBrief, savedUserId);
@@ -108,6 +117,34 @@ export function App() {
     try { await api.saveSubscription(user.id, form); setStatus("订阅偏好已保存。"); }
     catch (error) { setStatus(error instanceof Error ? error.message : "保存订阅失败"); }
     finally { setBusy(false); }
+  }
+
+  async function togglePersonalization(enabled: boolean): Promise<void> {
+    if (!user) return;
+    try {
+      const updated = await api.setPersonalizationEnabled(user.id, enabled);
+      setForm(updated);
+      await loadProfile(user.id);
+      setStatus(enabled ? "个性化排序已启用。" : "个性化排序已暂停，显式订阅偏好仍然有效。");
+    } catch (error) { setStatus(error instanceof Error ? error.message : "更新个性化设置失败"); }
+  }
+
+  async function updatePreference(preference: InferredPreference, input: { status?: "accepted" | "dismissed"; weight?: number }): Promise<void> {
+    if (!user) return;
+    try {
+      await api.updateInferredPreference(preference.id, user.id, input);
+      await loadProfile(user.id);
+      setStatus(input.status === "accepted" ? "已接受推断偏好。" : input.status === "dismissed" ? "已忽略推断偏好。" : "偏好权重已更新。");
+    } catch (error) { setStatus(error instanceof Error ? error.message : "更新推断偏好失败"); }
+  }
+
+  async function deletePreference(preferenceId: string): Promise<void> {
+    if (!user) return;
+    try {
+      await api.deleteInferredPreference(preferenceId, user.id);
+      await loadProfile(user.id);
+      setStatus("推断偏好已删除。");
+    } catch (error) { setStatus(error instanceof Error ? error.message : "删除推断偏好失败"); }
   }
 
   async function startRun(): Promise<void> {
@@ -249,6 +286,7 @@ export function App() {
     {!user ? <section className="card"><h2>创建演示身份</h2><form onSubmit={(event) => void createIdentity(event)}><label>昵称<input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={100} required/></label><button disabled={busy}>创建身份</button></form></section> : <>
       <nav className="tabs">
         <button onClick={() => setView("settings")}>偏好设置</button>
+        <button onClick={() => { setView("personalization"); void loadProfile(user.id); }}>个性化画像</button>
         <button onClick={() => setView("run")}>运行详情</button>
         <button onClick={() => { setView("history"); void loadHistory(user.id); }}>历史简报</button>
         <button onClick={() => { setView("library"); void loadLibrary(user.id); }}>收藏与追踪</button>
@@ -271,6 +309,8 @@ export function App() {
         <button type="button" className="secondary-control" onClick={() => void skipToday()}>今天不推送</button>
         <button className="wide" disabled={busy}>保存订阅偏好</button>
       </form></section>}
+
+      {view === "personalization" && <section className="card"><div className="card-heading"><div><h2>个性化画像</h2><p>系统只会把你明确接受的推断偏好用于排序；显式排除词始终优先。</p></div><label className="toggle"><input type="checkbox" checked={profile?.enabled ?? form.personalizationEnabled ?? true} onChange={(event) => void togglePersonalization(event.target.checked)}/>启用个性化排序</label></div>{profile ? <><section className="profile-section"><h3>推断偏好</h3>{profile.inferredPreferences.length ? profile.inferredPreferences.map((preference) => <div className="preference-row" key={preference.id}><div><strong>{preference.value}</strong><span>{preference.kind} · {preference.status} · 置信度 {Math.round(preference.confidence * 100)}% · {preference.evidenceCount} 条证据</span></div><div className="preference-weight"><button className="secondary" disabled={preference.status !== "accepted"} onClick={() => void updatePreference(preference, { weight: Math.max(-2, preference.weight - 0.25) })}>−</button><b>{preference.weight.toFixed(2)}</b><button className="secondary" disabled={preference.status !== "accepted"} onClick={() => void updatePreference(preference, { weight: Math.min(2, preference.weight + 0.25) })}>＋</button></div><div className="item-actions">{preference.status !== "accepted" && <button className="active" onClick={() => void updatePreference(preference, { status: "accepted" })}>接受</button>}{preference.status !== "dismissed" && <button className="secondary" onClick={() => void updatePreference(preference, { status: "dismissed" })}>忽略</button>}<button className="text-button" onClick={() => void deletePreference(preference.id)}>删除</button></div></div>) : <p>积累至少两条同类反馈后，这里会出现可确认的推断偏好。</p>}</section><section className="profile-section"><h3>近 30 天负向信号</h3>{profile.recentNegativeSignals.length ? <ul>{profile.recentNegativeSignals.map((signal) => <li key={`${signal.topic}-${signal.reason}`}>{signal.topic} · {signal.reason} × {signal.count}</li>)}</ul> : <p>暂无。</p>}</section><section className="profile-section"><h3>持续追踪</h3>{profile.trackedTopics.length ? <ul>{profile.trackedTopics.map((topic) => <li key={topic.id}>{topic.label}</li>)}</ul> : <p>暂无。</p>}</section></> : <p>正在加载画像…</p>}</section>}
 
       {view === "run" && <section className="card"><div className="card-heading"><div><h2>运行详情</h2><p>{run ? `${run.status} · ${run.toolCallCount} 次工具调用` : "尚未运行"}</p></div>{run && ["queued","running"].includes(run.status) && <button className="danger" onClick={() => void cancelRun()}>取消</button>}</div><div className="timeline">{events.length ? events.map((event, index) => <div className="event" key={`${event.timestamp}-${index}`}><time>{new Date(event.timestamp).toLocaleTimeString()}</time><strong>{event.type}</strong><span>{event.toolName ?? event.delta ?? event.error ?? event.status ?? ""}</span></div>) : <p>点击“立即生成”查看 Agent 的实时工具调用。</p>}</div></section>}
 

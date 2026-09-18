@@ -34,6 +34,7 @@ function toSubscription(row: SubscriptionRow): Subscription {
     enabled: row.enabled,
     pausedUntil: row.pausedUntil,
     skipDates: parseStringArray(row.skipDatesJson),
+    personalizationEnabled: row.personalizationEnabled,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -63,7 +64,11 @@ export class SubscriptionRepository {
 
   public upsert(userId: string, input: UpsertSubscriptionInput): Subscription {
     const existing = this.db
-      .select({ id: subscriptions.id, createdAt: subscriptions.createdAt })
+      .select({
+        id: subscriptions.id,
+        createdAt: subscriptions.createdAt,
+        personalizationEnabled: subscriptions.personalizationEnabled,
+      })
       .from(subscriptions)
       .where(eq(subscriptions.userId, userId))
       .get();
@@ -83,6 +88,7 @@ export class SubscriptionRepository {
       enabled: input.enabled,
       pausedUntil: input.pausedUntil ?? null,
       skipDatesJson: JSON.stringify(input.skipDates ?? []),
+      personalizationEnabled: input.personalizationEnabled ?? existing?.personalizationEnabled ?? true,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -105,6 +111,7 @@ export class SubscriptionRepository {
           enabled: values.enabled,
           pausedUntil: values.pausedUntil,
           skipDatesJson: values.skipDatesJson,
+          personalizationEnabled: values.personalizationEnabled,
           updatedAt: values.updatedAt,
         },
       })

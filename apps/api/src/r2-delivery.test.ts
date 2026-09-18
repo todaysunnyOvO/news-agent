@@ -141,7 +141,7 @@ describe("R2 daily delivery", () => {
     const base: Subscription = {
       id: "subscription", userId: "user", topics: [], keywords: [], excludedKeywords: [], languages: ["zh-CN"], sourceIds: [],
       maxItems: 5, scheduleCron: "0 8 * * 1-5", timezone: "Asia/Shanghai", deliveryChannel: "web", enabled: true,
-      pausedUntil: null, skipDates: [], createdAt: "", updatedAt: "",
+      pausedUntil: null, skipDates: [], personalizationEnabled: true, createdAt: "", updatedAt: "",
     };
     expect(isSubscriptionDue(base, new Date("2026-09-18T00:00:00.000Z")).due).toBe(true);
     expect(isSubscriptionDue(base, new Date("2026-09-18T03:59:00.000Z")).due).toBe(true);

@@ -26,6 +26,7 @@ export interface Subscription {
   enabled: boolean;
   pausedUntil: string | null;
   skipDates: string[];
+  personalizationEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,6 +44,7 @@ export interface UpsertSubscriptionInput {
   enabled: boolean;
   pausedUntil?: string | null;
   skipDates?: string[];
+  personalizationEnabled?: boolean;
 }
 
 export interface ApiError {
@@ -188,6 +190,41 @@ export interface TrackedTopic {
   sourceBriefItemId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type InferredPreferenceKind =
+  | "topic"
+  | "keyword"
+  | "source"
+  | "content_type"
+  | "freshness";
+export type InferredPreferenceStatus = "suggested" | "accepted" | "dismissed";
+
+export interface InferredPreference {
+  id: string;
+  userId: string;
+  kind: InferredPreferenceKind;
+  value: string;
+  weight: number;
+  confidence: number;
+  status: InferredPreferenceStatus;
+  evidenceCount: number;
+  evidenceIds: string[];
+  lastReinforcedAt: string;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalizationProfile {
+  enabled: boolean;
+  inferredPreferences: InferredPreference[];
+  recentNegativeSignals: Array<{
+    topic: string;
+    reason: "not_interested" | "already_known" | "repetitive";
+    count: number;
+  }>;
+  trackedTopics: TrackedTopic[];
 }
 
 export type DeliveryJobStatus =
