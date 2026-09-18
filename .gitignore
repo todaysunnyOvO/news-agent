@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.npm-cache/
+*.log
+.env
+.env.*
+!.env.example
+data/*.sqlite
+data/*.sqlite-*
+data/users/
+apps/web/.vite/
