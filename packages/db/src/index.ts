@@ -18,4 +18,5 @@ export { BriefRepository } from "./repositories/brief-repository.js";
 export { FeedbackRepository, type FeedbackContextSignal } from "./repositories/feedback-repository.js";
 export { LibraryRepository } from "./repositories/library-repository.js";
 export { InferredPreferenceRepository, type PreferenceSuggestion } from "./repositories/inferred-preference-repository.js";
+export { ReportingRepository } from "./repositories/reporting-repository.js";
 export * as schema from "./schema.js";

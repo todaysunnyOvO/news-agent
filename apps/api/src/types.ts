@@ -1,4 +1,4 @@
-import type { AgentRunRepository, BriefRepository, DeliveryRepository, FeedbackRepository, InferredPreferenceRepository, LibraryRepository, SubscriptionRepository, UserRepository } from "@news-agent/db";
+import type { AgentRunRepository, BriefRepository, DeliveryRepository, FeedbackRepository, InferredPreferenceRepository, LibraryRepository, ReportingRepository, SubscriptionRepository, UserRepository } from "@news-agent/db";
 import type { NewsAgentEvent, RunNewsAgentInput, RunNewsAgentResult, StartedNewsAgentRun } from "@news-agent/agent";
 
 export interface AppRepositories {
@@ -10,6 +10,7 @@ export interface AppRepositories {
   inferredPreferences: InferredPreferenceRepository;
   library: LibraryRepository;
   deliveries: DeliveryRepository;
+  reporting: ReportingRepository;
 }
 
 export interface AgentRunController {

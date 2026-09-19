@@ -5,6 +5,20 @@
 > 默认技术路线：TypeScript + Node.js + Pi Coding Agent SDK  
 > 目标：实现一个能根据用户偏好，自主检索、筛选、阅读、整理并保存每日 AI 新闻简报的垂类 Agent。
 
+> R2 状态：反馈闭环、每日送达、可控个性化和质量运营已完成。本文保留 MVP 的架构与决策记录；R2 的增量设计、数据模型、API、安全边界和进度以 [R2_DEVELOPMENT.md](./R2_DEVELOPMENT.md) 为准。
+
+## R2 实现摘要
+
+R2 延续本文定义的 React、Fastify、SQLite、Repository、Provider、Tool 与 `NewsAgentService` 边界，没有重构总体架构。新增能力包括：
+
+- 条目反馈、整份简报评价、收藏与持续追踪；
+- Resend 邮件/Webhook 统一投递、幂等重试和签名快捷反馈；
+- 反馈聚合、带时间衰减的推断偏好、用户确认和候选新闻评分；
+- 兼容旧数据的分层简报字段，以及质量、送达、成本和性能聚合；
+- 固定历史候选回放和相邻周期版本对比报告。
+
+R2 没有新增外部服务。真实运行仍只依赖 DeepSeek、Tavily，以及按需启用的 Resend 或 HTTPS Webhook；完整环境变量说明见 `.env.example` 和 README。
+
 ## 1. 项目目标
 
 ### 1.1 产品目标

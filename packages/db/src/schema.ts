@@ -103,6 +103,10 @@ export const briefItems = sqliteTable("brief_items", {
   whyItMatters: text("why_it_matters").notNull(),
   topic: text("topic").notNull(),
   rank: integer("rank").notNull(),
+  section: text("section"),
+  novelty: text("novelty"),
+  recommendationReason: text("recommendation_reason"),
+  evidenceStatus: text("evidence_status"),
 });
 
 export const briefItemSources = sqliteTable(

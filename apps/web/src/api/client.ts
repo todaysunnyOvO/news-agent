@@ -10,6 +10,7 @@ import type {
   DeliveryJobDetail,
   InferredPreference,
   InferredPreferenceStatus,
+  MetricsSnapshot,
   PersonalizationProfile,
   SavedBrief,
   SavedItem,
@@ -77,6 +78,10 @@ export const api = {
 
   getPreferenceProfile(userId: string): Promise<PersonalizationProfile> {
     return request(`/api/users/${userId}/preference-profile`);
+  },
+
+  getMetrics(userId: string): Promise<MetricsSnapshot> {
+    return request(`/api/users/${userId}/metrics`);
   },
 
   setPersonalizationEnabled(userId: string, enabled: boolean): Promise<Subscription> {

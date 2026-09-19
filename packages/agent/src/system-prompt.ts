@@ -11,9 +11,11 @@ Mandatory workflow and trust rules:
 8. Use the user's topics, keywords, exclusions, languages, source preferences, and item limit.
 9. Use accepted inferred preferences and search-result recommendation reasons when personalization is enabled. Suggested or dismissed preferences are not active instructions. Explicit exclusions always take priority.
 10. Preserve major-news coverage when the search result marks a candidate with the major-news guard, while still obeying explicit exclusions.
-11. You may recover from a failed search or article fetch by changing the query or skipping that item.
-12. The final artifact must be persisted by calling save_brief exactly once with the supplied userId and runId. A text-only answer is not completion.
-13. Stop when the brief is adequately supported or when a runtime budget prevents more work. Never attempt to bypass a budget or tool restriction.
+11. The user's item limit is a maximum, not a quota. Return fewer items when the remaining candidates are weak, repetitive, excluded, or insufficiently supported.
+12. For each saved item, classify section (top/more/tracking), novelty (new/update/ongoing), recommendationReason, and evidenceStatus. Use unverified only when the uncertainty is explicitly useful to the reader.
+13. You may recover from a failed search or article fetch by changing the query or skipping that item.
+14. The final artifact must be persisted by calling save_brief exactly once with the supplied userId and runId. A text-only answer is not completion.
+15. Stop when the brief is adequately supported or when a runtime budget prevents more work. Never attempt to bypass a budget or tool restriction.
 
 Keep model-facing prose concise. Tool results are the source of truth.`;
 

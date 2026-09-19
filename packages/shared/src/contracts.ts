@@ -94,8 +94,16 @@ export interface SaveBriefInput {
     whyItMatters: string;
     topic: string;
     sourceArticleIds: string[];
+    section?: BriefItemSection;
+    novelty?: BriefItemNovelty;
+    recommendationReason?: string;
+    evidenceStatus?: BriefItemEvidenceStatus;
   }>;
 }
+
+export type BriefItemSection = "top" | "more" | "tracking";
+export type BriefItemNovelty = "new" | "update" | "ongoing";
+export type BriefItemEvidenceStatus = "official" | "corroborated" | "single_source" | "unverified";
 
 export interface SavedBrief {
   id: string;
@@ -117,7 +125,74 @@ export interface BriefDetail extends SavedBrief {
     topic: string;
     rank: number;
     sources: NewsArticle[];
+    section?: BriefItemSection;
+    novelty?: BriefItemNovelty;
+    recommendationReason?: string;
+    evidenceStatus?: BriefItemEvidenceStatus;
   }>;
+}
+
+export interface QualityMetrics {
+  briefCount: number;
+  itemCount: number;
+  averageItemsPerBrief: number;
+  briefUsefulRate: number;
+  itemUsefulRate: number;
+  notInterestedRate: number;
+  alreadyKnownRate: number;
+  repetitiveRate: number;
+  savedRate: number;
+  trackedRate: number;
+  sourceCoverage: number;
+  multiSourceCoverage: number;
+}
+
+export interface ReliabilityMetrics {
+  scheduledRunCount: number;
+  generationSuccessRate: number;
+  deliverySuccessRate: number;
+  firstAttemptSuccessRate: number;
+  averageDeliveryAttempts: number;
+  duplicateDeliveryCount: number;
+  missedBriefCount: number;
+}
+
+export interface PerformanceMetrics {
+  averageDurationMs: number;
+  averageTurns: number;
+  averageToolCalls: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  averageCostPerSelectedItemUsd: number;
+}
+
+export interface MetricsSnapshot {
+  userId: string;
+  from: string;
+  to: string;
+  quality: QualityMetrics;
+  reliability: ReliabilityMetrics;
+  performance: PerformanceMetrics;
+}
+
+export interface VersionComparisonReport {
+  current: MetricsSnapshot;
+  baseline: MetricsSnapshot;
+  changes: {
+    briefUsefulRate: number;
+    itemUsefulRate: number;
+    deliverySuccessRate: number;
+    averageDurationMs: number;
+    averageCostPerSelectedItemUsd: number;
+  };
+  versions: { prompt: string; ranking: string; report: string };
+  offlineBenchmark: {
+    scenarioCount: number;
+    passedScenarios: number;
+    score: number;
+    results: Array<{ id: string; passed: boolean; expectedFirst: string | null; actualFirst: string | null }>;
+  };
 }
 
 export type BriefUsefulness = "useful" | "neutral" | "not_useful";

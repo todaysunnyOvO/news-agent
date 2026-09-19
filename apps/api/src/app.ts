@@ -8,6 +8,7 @@ import {
   FeedbackRepository,
   InferredPreferenceRepository,
   LibraryRepository,
+  ReportingRepository,
   SubscriptionRepository,
   UserRepository,
   type NewsDatabase,
@@ -19,6 +20,7 @@ import { registerFeedbackRoutes } from "./routes/feedback.js";
 import { registerDeliveryRoutes } from "./routes/deliveries.js";
 import { registerRunRoutes } from "./routes/runs.js";
 import { registerPersonalizationRoutes } from "./routes/personalization.js";
+import { registerAnalyticsRoutes } from "./routes/analytics.js";
 import { InMemoryRunEventStore } from "./run-event-store.js";
 import { NewsScheduler } from "./scheduler.js";
 import type { AgentRunController } from "./types.js";
@@ -57,6 +59,7 @@ export async function createApp(options: CreateAppOptions): Promise<FastifyInsta
     inferredPreferences: new InferredPreferenceRepository(options.db),
     library: new LibraryRepository(options.db),
     deliveries: new DeliveryRepository(options.db),
+    reporting: new ReportingRepository(options.db),
   };
   const events = new InMemoryRunEventStore();
 
@@ -65,6 +68,7 @@ export async function createApp(options: CreateAppOptions): Promise<FastifyInsta
   await registerBriefRoutes(app, { repositories, dataRoot: options.dataRoot ?? "data" });
   await registerFeedbackRoutes(app, repositories);
   await registerPersonalizationRoutes(app, repositories, options.db);
+  await registerAnalyticsRoutes(app, repositories);
   await registerDeliveryRoutes(app, {
     repositories,
     ...(options.deliveryService ? { delivery: options.deliveryService } : {}),

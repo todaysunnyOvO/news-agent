@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { asc, desc, eq, inArray } from "drizzle-orm";
 
-import type { BriefDetail, NewsArticle, SaveBriefInput, SavedBrief } from "@news-agent/shared";
+import type { BriefDetail, BriefItemEvidenceStatus, BriefItemNovelty, BriefItemSection, NewsArticle, SaveBriefInput, SavedBrief } from "@news-agent/shared";
 
 import type { NewsDatabase } from "../database.js";
 import { agentRuns, articles, briefItems, briefItemSources, briefs, users } from "../schema.js";
@@ -66,6 +66,10 @@ export class BriefRepository {
           topic: item.topic,
           rank: item.rank,
           sources,
+          ...(item.section ? { section: item.section as BriefItemSection } : {}),
+          ...(item.novelty ? { novelty: item.novelty as BriefItemNovelty } : {}),
+          ...(item.recommendationReason ? { recommendationReason: item.recommendationReason } : {}),
+          ...(item.evidenceStatus ? { evidenceStatus: item.evidenceStatus as BriefItemEvidenceStatus } : {}),
         };
       }),
     };
@@ -118,6 +122,10 @@ export class BriefRepository {
             whyItMatters: item.whyItMatters,
             topic: item.topic,
             rank: index + 1,
+            section: item.section ?? null,
+            novelty: item.novelty ?? null,
+            recommendationReason: item.recommendationReason ?? null,
+            evidenceStatus: item.evidenceStatus ?? null,
           })
           .run();
         if (item.sourceArticleIds.length > 0) {

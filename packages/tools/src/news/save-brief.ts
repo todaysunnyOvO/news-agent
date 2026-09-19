@@ -22,7 +22,12 @@ function localDate(timezone: string): string {
 function renderMarkdown(input: SaveBriefInput, articles: ArticleRepository): string {
   const lines = [`# ${input.title}`, "", input.overview, ""];
   for (const [index, item] of input.items.entries()) {
-    lines.push(`## ${index + 1}. ${item.headline}`, "", item.summary, "", `**为什么重要：** ${item.whyItMatters}`, "", `**主题：** ${item.topic}`, "", "**来源：**");
+    lines.push(`## ${index + 1}. ${item.headline}`, "", item.summary, "", `**为什么重要：** ${item.whyItMatters}`, "", `**主题：** ${item.topic}`);
+    if (item.section) lines.push("", `**栏目：** ${item.section}`);
+    if (item.novelty) lines.push("", `**进展：** ${item.novelty}`);
+    if (item.recommendationReason) lines.push("", `**推荐原因：** ${item.recommendationReason}`);
+    if (item.evidenceStatus) lines.push("", `**证据状态：** ${item.evidenceStatus}`);
+    lines.push("", "**来源：**");
     for (const articleId of item.sourceArticleIds) {
       const article = articles.findById(articleId);
       if (article) lines.push(`- [${article.sourceName}：${article.title}](${article.canonicalUrl})（${article.publishedAt}）`);
@@ -58,6 +63,10 @@ export function createSaveBriefTool(
               whyItMatters: Type.String({ minLength: 1, maxLength: 2_000 }),
               topic: Type.String({ minLength: 1, maxLength: 100 }),
               sourceArticleIds: Type.Array(Type.String({ minLength: 1 }), { minItems: 1, maxItems: 10 }),
+              section: Type.Optional(Type.Union([Type.Literal("top"), Type.Literal("more"), Type.Literal("tracking")])),
+              novelty: Type.Optional(Type.Union([Type.Literal("new"), Type.Literal("update"), Type.Literal("ongoing")])),
+              recommendationReason: Type.Optional(Type.String({ minLength: 1, maxLength: 500 })),
+              evidenceStatus: Type.Optional(Type.Union([Type.Literal("official"), Type.Literal("corroborated"), Type.Literal("single_source"), Type.Literal("unverified")])),
             },
             { additionalProperties: false },
           ),
