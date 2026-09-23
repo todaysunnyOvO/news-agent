@@ -1,158 +1,255 @@
-# News Agent
+# 每日 AI 新闻助手
 
-个人每日高质量新闻助手。MVP Phase 1～6、R2 Phase 1～4 和 UX R1 均已完成：可配置显式偏好，通过反馈形成可控的个性化画像，使用 DeepSeek + Tavily 手动或定时生成分层简报，并通过站内、Resend 邮件或 Webhook 送达。
+一个会按你的关注方向搜索、核验并整理新闻的个人简报 Agent。它不仅能在网页中生成和阅读简报，还能按照已保存的订阅设置，每天自动把结果发送到邮箱或 Webhook。
 
-## 环境要求
+项目基于 TypeScript npm workspace：前端使用 React + Vite，API 使用 Fastify，数据落在 SQLite；新闻生成由 Pi Coding Agent SDK 编排受控工具完成，并支持 Tavily、RSS 与 Mock 数据源。
 
-- Node.js 22+
-- npm 11+
+> 无 API Key 也能启动完整界面和演示流程；配置 DeepSeek、Tavily 与 Resend 后，可以使用真实新闻搜索和邮件投递。
 
-## 安装
+## 已实现的产品成果
+
+### 一眼读完当天简报
+
+“今日”是默认入口：先呈现当天状态，再阅读完整简报；左侧保留往期内容，用户不需要在多个页面之间寻找结果。
+
+![每日 AI 新闻助手的今日简报与往期简报](docs/images/daily-brief-web.png)
+
+### 按个人兴趣生成，而不是固定信息流
+
+用户可以设置关注话题、关键词、新闻语言和每份简报的条目上限。生成时，Agent 会依据已保存的偏好搜索、筛选、核验并组织内容。
+
+![订阅设置中的内容偏好](docs/images/subscription-preferences.png)
+
+### 网页阅读和外部投递明确分开
+
+简报可以只保留在站内，也可以选择邮件接收。投递严格使用已经保存的设置，避免把尚未保存的表单选择误当成真实订阅状态。
+
+![订阅设置中的接收方式](docs/images/delivery-channel.png)
+
+### 每天自动送达邮箱
+
+API 服务持续运行时，后台调度器会按订阅计划生成简报并投递。邮件包含标题、摘要、正文和反馈入口，手机上可以直接阅读，不必先打开网站。
+
+<p align="center">
+  <img src="docs/images/email-brief-mobile.png" alt="手机邮箱中收到的 AI 新闻简报" width="420" />
+</p>
+
+### 不只是生成，还形成反馈闭环
+
+- 收藏、追踪与稍后处理新闻。
+- 对简报和条目提交反馈，帮助后续选题排序。
+- 支持跳过当天自动简报、立即投递和投递历史。
+- 记录来源健康度、生成质量和投递结果，便于质量运营。
+- 异步操作具有处理中、成功、失败、禁用和防重复状态。
+
+## 5 分钟跑起来
+
+### 1. 准备环境
+
+- Node.js 22 或更高版本
+- npm 11 或更高版本
 
 ```bash
+node -v
+npm -v
+```
+
+### 2. 获取代码并安装依赖
+
+```bash
+git clone https://github.com/todaysunnyOvO/news-agent.git
+cd news-agent
 npm install
 ```
 
-## 开发运行
+如果你已经在项目目录中，只需要运行 `npm install`。
 
-先复制 `.env.example` 为 `.env`，填写：
+### 3. 启动零配置演示
 
-- `DEEPSEEK_API_KEY`：真实模型调用；
-- `TAVILY_API_KEY`：动态新闻搜索；
-- `NEWS_AGENT_DELIVERY_WEBHOOK_URL`：可选，成功生成后推送 HTTPS Webhook；
-- `RESEND_API_KEY`、`NEWS_AGENT_EMAIL_FROM`、`NEWS_AGENT_EMAIL_TO`：可选但必须成组配置，用于 Resend 邮件投递；
-- `NEWS_AGENT_PUBLIC_BASE_URL`：邮件中的简报和快捷反馈链接基础地址；
-- `NEWS_AGENT_FEEDBACK_SIGNING_SECRET`：启用邮件时必填，至少 32 个随机字符。
+第一次体验不需要创建 `.env`。未提供 DeepSeek 和 Tavily Key 时，API 会自动使用演示模型与 Mock 新闻源。
 
-真实密钥和个人邮箱只写入本地 `.env`，不要提交到 Git。项目不需要为 R2 Phase 4 增加任何新环境变量。
-
-API 启动时若检测到 DeepSeek 和 Tavily Key，会自动启用真实运行时；缺少任一 Key 时回退到 Pi Faux Model 和 Mock News Provider，便于离线演示。
-
-分别打开两个终端：
+打开第一个终端，启动 API：
 
 ```bash
 npm run dev:api
 ```
 
+打开第二个终端，启动 Web：
+
 ```bash
 npm run dev:web
 ```
 
-- Web：<http://127.0.0.1:5173>
-- API：<http://127.0.0.1:3000>
-- 健康检查：<http://127.0.0.1:3000/health>
+然后访问：
 
-## 使用流程
+- Web：<http://localhost:5173>
+- API 健康检查：<http://localhost:3000/health>
 
-- 首次创建本地身份后，按“关注内容 → 时间安排 → 接收方式”三个步骤完成设置，并生成第一份简报。
-- 已有用户默认进入“今日”，直接阅读今天或最近的简报；往期简报也在同一页面选择。
-- 每条新闻默认只显示“有帮助”“不喜欢”和“收藏”；点击“不喜欢”后再选择具体原因，收藏后可继续追踪。
-- 订阅设置按内容、时间和接收方式分区。修改会先保留为草稿，明确保存后才影响生成和投递。
-- 投递区域优先显示“仅站内”“发送中”“已发送”或“发送失败”等结果；只有失败时突出重新发送。
-- 个性化画像、运行详情和质量概览位于设置页的“个性化与诊断”区域，不占用一级导航。
+页面打开后，进入“设置”保存一份订阅偏好，再回到“今日”生成简报即可。
 
-界面保持三个一级入口：“今日”“收藏与追踪”“设置”。自动化检查验证了主要状态规则和兼容路径，但不等同于真实用户体验验收。
+## 接入真实新闻
 
-## 验证
+复制环境变量模板：
+
+PowerShell：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+macOS / Linux：
 
 ```bash
-npm run build
-npm run check
+cp .env.example .env
 ```
 
-`npm run check` 会依次执行 ESLint、TypeScript 类型检查和 Vitest。
+至少把下面两个值替换为真实 Key：
 
-生产依赖可用 `npm audit --omit=dev` 检查，当前结果为 0 个漏洞。完整开发依赖树仍由 `drizzle-kit` 的旧版开发服务器链路带来 4 个 moderate 告警，审计工具当前标记为无可用修复；该链路不进入生产运行时，开发服务默认仅绑定本机地址。
+```dotenv
+DEEPSEEK_API_KEY=your_deepseek_api_key
+TAVILY_API_KEY=your_tavily_api_key
+```
 
-## 当前 API
+重新启动 API 后，Agent 将使用 DeepSeek 和 Tavily 获取真实新闻；RSS 来源仍可由新闻工具按配置参与搜索和补充。
+
+> `.env.example` 中的“请填写”只是占位文本，不能作为 Key 使用。想继续使用 Mock 模式时，请不要创建 `.env`，或删除这两个变量。
+
+## 开启每日邮件
+
+在 `.env` 中同时配置以下变量：
+
+```dotenv
+RESEND_API_KEY=re_your_resend_api_key
+NEWS_AGENT_EMAIL_FROM=News Agent <brief@your-verified-domain.com>
+NEWS_AGENT_EMAIL_TO=you@example.com
+NEWS_AGENT_FEEDBACK_SIGNING_SECRET=replace_with_a_long_random_secret
+NEWS_AGENT_PUBLIC_BASE_URL=http://localhost:5173
+```
+
+接着：
+
+1. 重新启动 API。
+2. 在“设置”中选择“邮件接收”。
+3. 设置每日投递时间并保存订阅偏好。
+4. 使用“立即投递”验证邮件配置。
+
+邮件投递需要 Resend 已验证的发件域名。四个邮件必填变量必须同时提供，否则 API 会拒绝以不完整配置启动。
+
+后台自动投递依赖 API 进程持续运行：浏览器可以关闭，但电脑和 API 服务不能停止。用于长期每日推送时，应把 API 部署为持续运行的服务，并把 `NEWS_AGENT_PUBLIC_BASE_URL` 改为用户可访问的站点地址。
+
+## 使用路径
 
 ```text
-POST  /api/users
-GET   /api/users/:userId
-PUT   /api/users/:userId/subscription
-GET   /api/users/:userId/subscription
-POST  /api/users/:userId/subscription/skip-today
-GET   /api/users/:userId/preference-profile
-PATCH /api/users/:userId/personalization
-PATCH /api/inferred-preferences/:preferenceId
-DELETE /api/inferred-preferences/:preferenceId
-POST  /api/users/:userId/runs
-GET   /api/runs/:runId
-GET   /api/runs/:runId/evaluation
-POST  /api/runs/:runId/cancel
-GET   /api/runs/:runId/events
-GET   /api/users/:userId/briefs
-GET   /api/briefs/:briefId
-GET   /api/briefs/:briefId/markdown
-PUT   /api/briefs/:briefId/feedback
-GET   /api/briefs/:briefId/feedback
-PUT   /api/brief-items/:itemId/feedback/:type
-DELETE /api/brief-items/:itemId/feedback/:type
-PUT   /api/brief-items/:itemId/saved
-DELETE /api/brief-items/:itemId/saved
-POST  /api/brief-items/:itemId/tracking
-GET   /api/users/:userId/saved-items
-GET   /api/users/:userId/tracked-topics
-PATCH /api/tracked-topics/:trackingId
-GET   /api/briefs/:briefId/deliveries
-POST  /api/briefs/:briefId/deliver
-POST  /api/deliveries/:deliveryId/retry
-GET   /api/users/:userId/metrics
-GET   /api/users/:userId/version-comparison
+设置关注内容与接收方式
+          ↓
+保存订阅偏好
+          ↓
+手动生成，或等待每日调度
+          ↓
+Agent 搜索、筛选、核验并生成简报
+          ↓
+站内阅读 / 邮件 / Webhook
+          ↓
+收藏、追踪和反馈进入下一轮个性化
 ```
 
-前端包含订阅设置、个性化画像、质量概览、运行时间线、简报反馈、收藏追踪、投递状态和兼容 R1/R2 的历史详情。
+## 系统结构
 
-## 当前工具
+```mermaid
+flowchart LR
+    UI[React + Vite] --> API[Fastify API]
+    API --> SERVICE[Repository / Service]
+    SERVICE --> DB[(SQLite + Drizzle)]
+    API --> AGENT[Pi Coding Agent SDK]
+    AGENT --> TOOLS[受控新闻工具]
+    TOOLS --> SOURCES[Tavily / RSS / Mock]
+    SERVICE --> DELIVERY[Resend / Webhook]
+```
 
-- `list_dir(path)`：列出用户工作目录内容；
-- `read_file(path)`：读取 UTF-8 文本并限制返回长度；
-- `search_content(keyword, dir)`：搜索 Markdown、JSON 和文本文件；
-- `write_file(path, content)`：原子写入 `.md`、`.json`、`.txt`；
-- `bash(command)`：执行白名单命令，不开放任意 Shell。
+主要边界保持为：`React → Fastify API → Repository/Service → SQLite`。Agent 不直接访问页面或数据库，只通过受控工具使用新闻能力。
 
-所有工具均限制在 `data/users/<user-id>/workspace/`，并提供 TypeBox Schema、审计事件、超时和输出上限。
+## 常用命令
 
-## 新闻能力
+```bash
+# 开发
+npm run dev:api
+npm run dev:web
 
-- `MockNewsProvider`：测试环境完全离线；
-- `RssNewsProvider`：支持多个 RSS/Atom Feed；
-- `TavilyNewsProvider`：支持动态关键词、时间和语言过滤，并对结果正文做安全抓取；
-- Readability + JSDOM 正文抽取，失败时回退到 RSS 摘要；
-- URL 规范化、正文哈希和标题相似度去重；
-- 同事件语义聚类、独立来源计数和交叉验证标记；
-- 新闻元数据与正文缓存到 SQLite；
-- SSRF 基础防护、重定向/超时/响应大小限制。
+# 类型检查与自动化测试
+npm run check
 
-当前领域工具：
+# 生产构建
+npm run build
+```
 
-- `get_user_preferences`
-- `search_news`
-- `fetch_article`
-- `find_related_articles`
-- `save_brief`
+提交改动前建议至少运行：
 
-`save_brief` 会校验引用文章 ID，并同时保存结构化数据库记录和 Markdown 简报。
-R2 条目可选包含栏目、进展类型、推荐原因和证据状态；旧简报缺少这些字段时仍可正常读取。
+```bash
+npm run check
+npm run build
+git diff --check
+```
 
-## Pi Agent 能力
+自动化检查只能证明当前测试覆盖的行为通过，不能替代真实邮箱、真实新闻源和目标设备上的产品验证。
 
-- Pi Coding Agent SDK 固定为 `0.85.1`；
-- `NewsAgentService` 只启用本项目的安全自定义工具，不开放 Pi 内置文件或 Shell 工具；
-- System Prompt 强制先读取偏好、使用工具核验实时新闻、忽略网页中的 Prompt Injection，并通过 `save_brief` 完成任务；
-- 对外提供脱敏的文本、工具、简报和运行状态事件；
-- 默认限制 180 秒、12 个 Turn、30 次工具调用，并支持主动取消；
-- 集成测试使用 Pi 官方 Faux Provider，无需模型 API Key。
+## 环境变量速查
 
-## 推送、反馈与评估
+| 变量 | 用途 | 本地演示是否必需 |
+| --- | --- | --- |
+| `HOST` / `PORT` | API 监听地址和端口，默认 `127.0.0.1:3000` | 否 |
+| `NEWS_AGENT_DB_PATH` | SQLite 文件位置，默认 `./data/news-agent.sqlite` | 否 |
+| `WEB_ORIGIN` | API 允许访问的 Web 来源 | 否 |
+| `DEEPSEEK_API_KEY` | 真实模型调用 | 否 |
+| `TAVILY_API_KEY` | 真实新闻搜索 | 否 |
+| `RESEND_API_KEY` | 邮件投递 | 仅邮件模式 |
+| `NEWS_AGENT_EMAIL_FROM` | 已验证的发件地址 | 仅邮件模式 |
+| `NEWS_AGENT_EMAIL_TO` | 收件地址 | 仅邮件模式 |
+| `NEWS_AGENT_FEEDBACK_SIGNING_SECRET` | 邮件反馈链接签名 | 仅邮件模式 |
+| `NEWS_AGENT_PUBLIC_BASE_URL` | 邮件内链接指向的 Web 地址 | 仅邮件模式 |
+| `NEWS_AGENT_DELIVERY_WEBHOOK_URL` | Webhook 投递地址 | 仅 Webhook 模式 |
 
-- Resend 邮件与 HTTPS Webhook 使用统一投递状态机，临时失败最多重试 3 次；
-- 推送状态持久化，已成功的运行不会重复推送；
-- 邮件快捷反馈使用限时签名链接；
-- 反馈聚合为可查看、接受、调权、忽略和删除的推断偏好；
-- 运行记录包含耗时、Turn、输入/输出 Token 和模型成本；
-- `GET /api/runs/:runId/evaluation` 返回质量、来源覆盖率和性能指标。
-- `GET /api/users/:userId/metrics` 返回近 30 天质量、送达、成本和性能汇总；
-- `GET /api/users/:userId/version-comparison` 对比前一周期，并附带固定离线排序回放结果。
+完整示例见 [`.env.example`](.env.example)。不要提交包含真实 Key 或个人邮箱的 `.env`。
 
-MVP 设计见 [DEVELOPMENT.md](./DEVELOPMENT.md)，R2 设计、决策和进度见 [R2_DEVELOPMENT.md](./R2_DEVELOPMENT.md)，UX R1 计划、决策和验证记录见 [UX_DEVELOPMENT.md](./UX_DEVELOPMENT.md)。
+## 项目目录
+
+```text
+apps/
+  api/          Fastify API、调度器和投递入口
+  web/          React + Vite 用户界面
+packages/
+  agent/        Agent 编排与工具注册
+  core/         领域模型和业务规则
+  database/     SQLite / Drizzle 数据访问
+  delivery/     邮件与 Webhook 投递
+  news/         Tavily、RSS、Mock 新闻能力
+docs/images/    README 产品截图
+```
+
+## 常见问题
+
+### 为什么第一次打开就有简报或设置？
+
+项目会持久化数据：服务端数据保存在 SQLite 中，部分浏览器状态保存在本地存储中。重新启动服务不会自动清空这些内容。需要全新体验时，可以使用新的数据库路径和浏览器无痕窗口；不要直接删除仍需保留的数据文件。
+
+### 为什么打开 5173 端口却不是这个项目？
+
+说明该端口已经被另一个 Vite 项目占用。先停止占用端口的旧开发服务，再从本仓库运行 `npm run dev:web`。正确页面标题是“每日 AI 新闻助手”。
+
+### 为什么生成的内容是演示数据？
+
+只有 `DEEPSEEK_API_KEY` 和 `TAVILY_API_KEY` 都有效时才会启用真实运行时。缺少任意一项时，系统会回退到 Mock 演示流程。
+
+### 为什么浏览器关闭后没有收到每日邮件？
+
+浏览器可以关闭，但负责调度和投递的 API 必须持续运行；本机休眠、关机或 API 退出都会中断自动任务。
+
+## API 与进一步开发
+
+API 覆盖用户与订阅、简报生成、每日计划、投递、反馈、收藏追踪、来源健康度和质量运营。需要继续开发时，请先阅读：
+
+- [开发说明](DEVELOPMENT.md)
+- [R2 开发说明](R2_DEVELOPMENT.md)
+- [体验优化计划](UX_DEVELOPMENT.md)
+- [Bug 修复记录](bug修复记录.md)
+
+项目当前不提供托管式生产环境开箱即用配置。生产部署时还需要自行处理 HTTPS、进程守护、反向代理、域名、密钥管理、数据库备份与监控。
